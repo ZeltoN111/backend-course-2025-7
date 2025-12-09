@@ -1,24 +1,37 @@
-const { program } = require('commander');
-const express = require('express');
-const multer = require('multer');
-const path = require('path');
-const fs = require('fs');
-const { randomUUID } = require('crypto');
-const bodyParser = require('body-parser');
-const swaggerUi = require('swagger-ui-express');
-const swaggerJsdoc = require('swagger-jsdoc');
+import { program } from 'commander';
+import express from 'express';
+import multer from 'multer';
+import path from 'path';
+import fs from 'fs';
+import { randomUUID } from 'crypto';
+import bodyParser from 'body-parser';
+import swaggerUi from 'swagger-ui-express';
+import swaggerJsdoc from 'swagger-jsdoc';
+import dotenv from 'dotenv';
+import mysql from 'mysql2/promise';
+
+dotenv.config();
 
 program
-    .requiredOption('-h, --host <host>', 'Host address to bind the server')
-    .requiredOption('-p, --port <port>', 'Port number to bind the server')
-    .requiredOption('-c, --cache <dir>', 'Cache directory for storing files');
-
-program.parse(process.argv);
+    .option('-h, --host <host>', 'Host address to bind the server', process.env.HOST)
+    .option('-p, --port <port>', 'Port number to bind the server', process.env.PORT)
+    .option('-c, --cache <dir>', 'Cache directory for storing files', process.env.CACHE_DIR)
+    .parse(process.argv);
 const options = program.opts();
 
-const HOST = options.host;
-const PORT = options.port;
-const CACHE_DIR = path.resolve(options.cache);
+const HOST = options.host || '0.0.0.0';
+const PORT = options.port || 3000;
+const CACHE_DIR = path.resolve(options.cache || './cache');
+
+const pool = mysql.createPool({
+    host: process.env.MYSQL_HOST || 'localhost',
+    user: process.env.MYSQL_USER || 'user',
+    password: process.env.MYSQL_PASSWORD || 'password',
+    database: process.env.MYSQL_DATABASE || 'inventory_db',
+    waitForConnections: true,
+    connectionLimit: 10,
+    queueLimit: 0
+});
 
 if (!fs.existsSync(CACHE_DIR)) {
     fs.mkdirSync(CACHE_DIR, { recursive: true });
@@ -40,13 +53,11 @@ const swaggerOptions = {
             description: "API documentation for Inventory Service"
         },
     },
-    apis: ["./main.js"], 
+    apis: ["./main.js"],
 };
 
 const swaggerSpec = swaggerJsdoc(swaggerOptions);
 app.use("/docs", swaggerUi.serve, swaggerUi.setup(swaggerSpec));
-
-let inventory = [];
 
 /**
  * @openapi
@@ -73,24 +84,30 @@ let inventory = [];
  *         description: New item created
  *       400:
  *         description: inventory_name missing
+ *       500:
+ *         description: Server error
  */
-app.post('/register', upload.single('photo'), (req, res) => {
+app.post('/register', upload.single('photo'), async (req, res) => {
     const { inventory_name, description } = req.body;
 
     if (!inventory_name) {
         return res.status(400).json({ error: "(400) inventory_name is required" });
     }
 
-    const item = {
-        id: randomUUID(),
-        name: inventory_name,
-        description: description || "",
-        photo: req.file ? req.file.filename : null
-    };
+    const itemId = randomUUID();
+    const photoFilename = req.file ? req.file.filename : null;
 
-    inventory.push(item);
-
-    res.status(201).json({ message: "Created", id: item.id });
+    try {
+        const [result] = await pool.execute(
+            'INSERT INTO inventory (id, name, description, photo) VALUES (?, ?, ?, ?)',
+            [itemId, inventory_name, description || "", photoFilename]
+        );
+        console.log("DB Insert Result:", result);
+        res.status(201).json({ message: "Created", id: itemId });
+    } catch (error) {
+        console.error("DB Error:", error);
+        res.status(500).json({ error: "Internal Server Error" });
+    }
 });
 
 /**
@@ -102,9 +119,17 @@ app.post('/register', upload.single('photo'), (req, res) => {
  *     responses:
  *       200:
  *         description: List of items
+ *       500:
+ *         description: Server error
  */
-app.get('/inventory', (req, res) => {
-    res.json(inventory);
+app.get('/inventory', async (req, res) => {
+    try {
+        const [rows] = await pool.query('SELECT id, name, description, photo FROM inventory');
+        res.json(rows);
+    } catch (error) {
+        console.error("DB Error:", error);
+        res.status(500).json({ error: "Internal Server Error" });
+    }
 });
 
 /**
@@ -123,11 +148,23 @@ app.get('/inventory', (req, res) => {
  *         description: Found item
  *       404:
  *         description: Not found
+ *       500:
+ *         description: Server error
  */
-app.get('/inventory/:id', (req, res) => {
-    const item = inventory.find((x) => x.id === req.params.id);
-    if (!item) return res.status(404).json({ error: "Not found" });
-    res.json(item);
+app.get('/inventory/:id', async (req, res) => {
+    try {
+        const [rows] = await pool.execute(
+            'SELECT id, name, description, photo FROM inventory WHERE id = ?',
+            [req.params.id]
+        );
+
+        const item = rows[0];
+        if (!item) return res.status(404).json({ error: "Not found" });
+        res.json(item);
+    } catch (error) {
+        console.error("DB Error:", error);
+        res.status(500).json({ error: "Internal Server Error" });
+    }
 });
 
 /**
@@ -157,16 +194,49 @@ app.get('/inventory/:id', (req, res) => {
  *         description: Item updated
  *       404:
  *         description: Not found
+ *       500:
+ *         description: Server error
  */
-app.put('/inventory/:id', (req, res) => {
-    const item = inventory.find((x) => x.id === req.params.id);
-    if (!item) return res.status(404).json({ error: "Not found" });
-
+app.put('/inventory/:id', async (req, res) => {
     const { name, description } = req.body;
-    if (name) item.name = name;
-    if (description) item.description = description;
+    const updateFields = [];
+    const updateValues = [];
 
-    res.json({ message: "Updated", item });
+    if (name) {
+        updateFields.push('name = ?');
+        updateValues.push(name);
+    }
+    if (description) {
+        updateFields.push('description = ?');
+        updateValues.push(description);
+    }
+
+    if (updateFields.length === 0) {
+        const [rows] = await pool.execute('SELECT id, name, description, photo FROM inventory WHERE id = ?', [req.params.id]);
+        if (rows.length === 0) return res.status(404).json({ error: "Not found" });
+        return res.json({ message: "No changes requested", item: rows[0] });
+    }
+
+    try {
+        const [result] = await pool.execute(
+            `UPDATE inventory SET ${updateFields.join(', ')} WHERE id = ?`,
+            [...updateValues, req.params.id]
+        );
+
+        if (result.affectedRows === 0) {
+            const [checkRows] = await pool.execute('SELECT id FROM inventory WHERE id = ?', [req.params.id]);
+            if (checkRows.length === 0) return res.status(404).json({ error: "Not found" });
+        }
+
+        const [rows] = await pool.execute('SELECT id, name, description, photo FROM inventory WHERE id = ?', [req.params.id]);
+        const item = rows[0];
+
+        res.json({ message: "Updated", item });
+
+    } catch (error) {
+        console.error("DB Error:", error);
+        res.status(500).json({ error: "Internal Server Error" });
+    }
 });
 
 /**
@@ -190,21 +260,32 @@ app.put('/inventory/:id', (req, res) => {
  *               format: binary
  *       404:
  *         description: Not found
+ *       500:
+ *         description: Server error
  */
-app.get('/inventory/:id/photo', (req, res) => {
-    const item = inventory.find((x) => x.id === req.params.id);
+app.get('/inventory/:id/photo', async (req, res) => {
+    try {
+        const [rows] = await pool.execute(
+            'SELECT photo FROM inventory WHERE id = ?',
+            [req.params.id]
+        );
 
-    if (!item || !item.photo) {
-        return res.status(404).json({ error: "Photo not found" });
+        const item = rows[0];
+        if (!item || !item.photo) {
+            return res.status(404).json({ error: "Photo not found" });
+        }
+
+        const photoPath = path.join(CACHE_DIR, item.photo);
+        if (!fs.existsSync(photoPath)) {
+            return res.status(404).json({ error: "Photo file missing" });
+        }
+
+        res.setHeader("Content-Type", "image/jpeg");
+        res.sendFile(photoPath);
+    } catch (error) {
+        console.error("DB Error:", error);
+        res.status(500).json({ error: "Internal Server Error" });
     }
-
-    const photoPath = path.join(CACHE_DIR, item.photo);
-    if (!fs.existsSync(photoPath)) {
-        return res.status(404).json({ error: "Photo file missing" });
-    }
-
-    res.setHeader("Content-Type", "image/jpeg");
-    res.sendFile(photoPath);
 });
 
 /**
@@ -234,13 +315,31 @@ app.get('/inventory/:id/photo', (req, res) => {
  *         description: Photo updated
  *       404:
  *         description: Not found
+ *       500:
+ *         description: Server error
  */
-app.put('/inventory/:id/photo', upload.single('photo'), (req, res) => {
-    const item = inventory.find((x) => x.id === req.params.id);
-    if (!item) return res.status(404).json({ error: "Not found" });
+app.put('/inventory/:id/photo', upload.single('photo'), async (req, res) => {
+    if (!req.file) {
+        return res.status(400).json({ error: "Photo file is required" });
+    }
+    const photoFilename = req.file.filename;
 
-    item.photo = req.file.filename;
-    res.json({ message: "Photo updated" });
+    try {
+        const [result] = await pool.execute(
+            'UPDATE inventory SET photo = ? WHERE id = ?',
+            [photoFilename, req.params.id]
+        );
+
+        if (result.affectedRows === 0) {
+            const [checkRows] = await pool.execute('SELECT id FROM inventory WHERE id = ?', [req.params.id]);
+            if (checkRows.length === 0) return res.status(404).json({ error: "Not found" });
+        }
+
+        res.json({ message: "Photo updated" });
+    } catch (error) {
+        console.error("DB Error:", error);
+        res.status(500).json({ error: "Internal Server Error" });
+    }
 });
 
 /**
@@ -259,13 +358,41 @@ app.put('/inventory/:id/photo', upload.single('photo'), (req, res) => {
  *         description: Item deleted
  *       404:
  *         description: Not found
+ *       500:
+ *         description: Server error
  */
-app.delete('/inventory/:id', (req, res) => {
-    const index = inventory.findIndex((x) => x.id === req.params.id);
-    if (index === -1) return res.status(404).json({ error: "Not found" });
+app.delete('/inventory/:id', async (req, res) => {
+    try {
+        const [selectRows] = await pool.execute(
+            'SELECT photo FROM inventory WHERE id = ?',
+            [req.params.id]
+        );
+        const item = selectRows[0];
 
-    inventory.splice(index, 1);
-    res.json({ message: "Deleted" });
+        const [result] = await pool.execute(
+            'DELETE FROM inventory WHERE id = ?',
+            [req.params.id]
+        );
+
+        if (result.affectedRows === 0) {
+            return res.status(404).json({ error: "Not found" });
+        }
+
+        if (item && item.photo) {
+            const photoPath = path.join(CACHE_DIR, item.photo);
+            if (fs.existsSync(photoPath)) {
+                fs.unlink(photoPath, (err) => {
+                    if (err) console.error("Error deleting photo file:", err);
+                    else console.log(`Successfully deleted file: ${photoPath}`);
+                });
+            }
+        }
+
+        res.json({ message: "Deleted" });
+    } catch (error) {
+        console.error("DB Error:", error);
+        res.status(500).json({ error: "Internal Server Error" });
+    }
 });
 
 /**
@@ -277,32 +404,53 @@ app.delete('/inventory/:id', (req, res) => {
  *       - in: query
  *         name: id
  *         required: true
+ *         schema:
+ *           type: string
+ *       - in: query
+ *         name: includePhoto
+ *         schema:
+ *           type: boolean
  *     responses:
  *       200:
  *         description: Found
  *       404:
  *         description: Not found
+ *       500:
+ *         description: Server error
  */
-app.get('/search', (req, res) => {
+app.get('/search', async (req, res) => {
     console.log("SEARCH QUERY:", req.query);
     const { id, includePhoto } = req.query;
 
-    const item = inventory.find(x => x.id === id);
-
-    if (!item) {
-        return res.status(404).send("Not Found");
+    if (!id) {
+        return res.status(400).send("ID parameter is required");
     }
 
-    let result = `Name: ${item.name}\nDescription: ${item.description}`;
+    try {
+        const [rows] = await pool.execute(
+            'SELECT name, description, photo FROM inventory WHERE id = ?',
+            [id]
+        );
 
-    if (includePhoto) {
-        result += `\nPhoto: /inventory/${item.id}/photo`;
+        const item = rows[0];
+
+        if (!item) {
+            return res.status(404).send("Not Found");
+        }
+
+        let result = `Name: ${item.name}\nDescription: ${item.description}`;
+
+        if (includePhoto === 'true' || includePhoto === true) {
+            result += `\nPhoto: /inventory/${id}/photo`;
+        }
+
+        res.setHeader("Content-Type", "text/plain");
+        res.send(result);
+    } catch (error) {
+        console.error("DB Error:", error);
+        res.status(500).json({ error: "Internal Server Error" });
     }
-
-    res.setHeader("Content-Type", "text/plain");
-    res.send(result);
 });
-
 
 /**
  * @openapi
@@ -319,7 +467,6 @@ app.post('/hello', (req, res) => {
     console.log("Received /hello POST:", req.body);
     res.json({ message: "Hello received", data: req.body });
 });
-
 
 app.get('/RegisterForm.html', (req, res) => {
     res.sendFile(path.join(__dirname, 'RegisterForm.html'));
