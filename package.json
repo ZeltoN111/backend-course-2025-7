@@ -1,0 +1,29 @@
+{
+  "name": "backend-course-2025-6",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/ZeltoN111/backend-course-2025-6.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/ZeltoN111/backend-course-2025-6/issues"
+  },
+  "homepage": "https://github.com/ZeltoN111/backend-course-2025-6#readme",
+  "dependencies": {
+    "commander": "^14.0.2",
+    "superagent": "^10.2.3",
+    "swagger-jsdoc": "^6.2.8",
+    "swagger-ui-express": "^5.0.1"
+  },
+  "devDependencies": {
+    "nodemon": "^3.1.11"
+  }
+}

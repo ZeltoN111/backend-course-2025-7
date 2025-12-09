@@ -1,0 +1,272 @@
+{
+	"info": {
+		"_postman_id": "059a932d-3100-4f35-b672-b27d1905355b",
+		"name": "collection",
+		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+		"_exporter_id": "50109186",
+		"_collection_link": "https://romansu140-3869718.postman.co/workspace/%D0%A0%D0%BE%D0%BC%D0%B0%D0%BD-%D0%A1%D1%83%D1%85%D0%B0%D1%80's-Workspace~8a371333-e8b8-4095-801c-fede9ada60a2/collection/50109186-059a932d-3100-4f35-b672-b27d1905355b?action=share&source=collection_link&creator=50109186"
+	},
+	"item": [
+		{
+			"name": "/register",
+			"request": {
+				"method": "POST",
+				"header": [],
+				"body": {
+					"mode": "formdata",
+					"formdata": [
+						{
+							"key": "inventory_name",
+							"value": "Roman",
+							"type": "text"
+						},
+						{
+							"key": "description",
+							"value": "My name",
+							"type": "text"
+						},
+						{
+							"key": "photo",
+							"type": "file",
+							"src": "postman-cloud:///1f0c4b4b-8a4a-4280-abb1-c83e46edb71d"
+						}
+					]
+				},
+				"url": {
+					"raw": "http://127.0.0.1:3000/register",
+					"protocol": "http",
+					"host": [
+						"127",
+						"0",
+						"0",
+						"1"
+					],
+					"port": "3000",
+					"path": [
+						"register"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "/inventory",
+			"protocolProfileBehavior": {
+				"disableBodyPruning": true
+			},
+			"request": {
+				"method": "GET",
+				"header": [],
+				"body": {
+					"mode": "formdata",
+					"formdata": [
+						{
+							"key": "inventory_name",
+							"value": "",
+							"type": "text"
+						},
+						{
+							"key": "description",
+							"value": "My name",
+							"type": "text"
+						},
+						{
+							"key": "photo",
+							"type": "file",
+							"src": "postman-cloud:///1f0c4b4b-8a4a-4280-abb1-c83e46edb71d"
+						}
+					]
+				},
+				"url": {
+					"raw": "http://127.0.0.1:3000/inventory",
+					"protocol": "http",
+					"host": [
+						"127",
+						"0",
+						"0",
+						"1"
+					],
+					"port": "3000",
+					"path": [
+						"inventory"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "/inventory/id",
+			"request": {
+				"method": "GET",
+				"header": [],
+				"url": {
+					"raw": "http://127.0.0.1:3000/inventory/ba26d4c3-a5c6-42f7-b0e6-63d3fef6e8e3",
+					"protocol": "http",
+					"host": [
+						"127",
+						"0",
+						"0",
+						"1"
+					],
+					"port": "3000",
+					"path": [
+						"inventory",
+						"ba26d4c3-a5c6-42f7-b0e6-63d3fef6e8e3"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "/inventory/id",
+			"request": {
+				"method": "PUT",
+				"header": [],
+				"body": {
+					"mode": "raw",
+					"raw": "{\r\n    \"name\": \"Unknown\",\r\n    \"description\": \"Unknown\"\r\n}",
+					"options": {
+						"raw": {
+							"language": "json"
+						}
+					}
+				},
+				"url": {
+					"raw": "http://127.0.0.1:3000/inventory/d7149685-d4f7-47f6-9de3-a00a31b1e01a",
+					"protocol": "http",
+					"host": [
+						"127",
+						"0",
+						"0",
+						"1"
+					],
+					"port": "3000",
+					"path": [
+						"inventory",
+						"d7149685-d4f7-47f6-9de3-a00a31b1e01a"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "/inventory/id/photo",
+			"request": {
+				"method": "GET",
+				"header": [],
+				"url": {
+					"raw": "http://127.0.0.1:3000/inventory/ba26d4c3-a5c6-42f7-b0e6-63d3fef6e8e3/photo",
+					"protocol": "http",
+					"host": [
+						"127",
+						"0",
+						"0",
+						"1"
+					],
+					"port": "3000",
+					"path": [
+						"inventory",
+						"ba26d4c3-a5c6-42f7-b0e6-63d3fef6e8e3",
+						"photo"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "/inventory/id",
+			"request": {
+				"method": "DELETE",
+				"header": [],
+				"url": {
+					"raw": "http://127.0.0.1:3000/inventory/ba26d4c3-a5c6-42f7-b0e6-63d3fef6e8e3",
+					"protocol": "http",
+					"host": [
+						"127",
+						"0",
+						"0",
+						"1"
+					],
+					"port": "3000",
+					"path": [
+						"inventory",
+						"ba26d4c3-a5c6-42f7-b0e6-63d3fef6e8e3"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "/RegisterForm.html",
+			"request": {
+				"method": "GET",
+				"header": [],
+				"url": {
+					"raw": "http://127.0.0.1:3000/RegisterForm.html",
+					"protocol": "http",
+					"host": [
+						"127",
+						"0",
+						"0",
+						"1"
+					],
+					"port": "3000",
+					"path": [
+						"RegisterForm.html"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "/SearchForm.html",
+			"request": {
+				"method": "GET",
+				"header": [],
+				"url": {
+					"raw": "http://127.0.0.1:3000/SearchForm.html",
+					"protocol": "http",
+					"host": [
+						"127",
+						"0",
+						"0",
+						"1"
+					],
+					"port": "3000",
+					"path": [
+						"SearchForm.html"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "/search",
+			"request": {
+				"method": "GET",
+				"header": [],
+				"url": {
+					"raw": "http://127.0.0.1:3000/search?id=f6d7bad3-799c-4776-aef3-971cecdca69b",
+					"protocol": "http",
+					"host": [
+						"127",
+						"0",
+						"0",
+						"1"
+					],
+					"port": "3000",
+					"path": [
+						"search"
+					],
+					"query": [
+						{
+							"key": "id",
+							"value": "f6d7bad3-799c-4776-aef3-971cecdca69b"
+						}
+					]
+				}
+			},
+			"response": []
+		}
+	]
+}
