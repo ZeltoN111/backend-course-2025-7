@@ -398,18 +398,21 @@ app.delete('/inventory/:id', async (req, res) => {
 /**
  * @openapi
  * /search:
- *   get:
+ *   post:
  *     summary: Search item by ID
- *     parameters:
- *       - in: query
- *         name: id
- *         required: true
- *         schema:
- *           type: string
- *       - in: query
- *         name: includePhoto
- *         schema:
- *           type: boolean
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/x-www-form-urlencoded:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               id:
+ *                 type: string
+ *               includePhoto:
+ *                 type: boolean
+ *             required:
+ *               - id
  *     responses:
  *       200:
  *         description: Found
@@ -418,9 +421,9 @@ app.delete('/inventory/:id', async (req, res) => {
  *       500:
  *         description: Server error
  */
-app.get('/search', async (req, res) => {
-    console.log("SEARCH QUERY:", req.query);
-    const { id, includePhoto } = req.query;
+app.post('/search', async (req, res) => {
+    console.log("SEARCH BODY:", req.body);
+    const { id, includePhoto } = req.body;
 
     if (!id) {
         return res.status(400).send("ID parameter is required");
@@ -452,28 +455,12 @@ app.get('/search', async (req, res) => {
     }
 });
 
-/**
- * @openapi
- * /hello:
- *   post:
- *     summary: Hello endpoint
- *     responses:
- *       201:
- *         description: Created
- *       404:
- *         description: Not found
- */
-app.post('/hello', (req, res) => {
-    console.log("Received /hello POST:", req.body);
-    res.json({ message: "Hello received", data: req.body });
-});
-
 app.get('/RegisterForm.html', (req, res) => {
-    res.sendFile(path.join(__dirname, 'RegisterForm.html'));
+    res.sendFile(path.resolve('RegisterForm.html'));
 });
 
 app.get('/SearchForm.html', (req, res) => {
-    res.sendFile(path.join(__dirname, 'SearchForm.html'));
+    res.sendFile(path.resolve('SearchForm.html'));
 });
 
 app.use((req, res) => {
